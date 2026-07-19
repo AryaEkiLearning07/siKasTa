@@ -1,0 +1,506 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  KEPALA_SEKOLAH
+  GURU
+  WALI_KELAS
+  BENDAHARA
+}
+
+enum AttendanceStatus {
+  H
+  I
+  S
+  A
+}
+
+enum AssessmentType {
+  TUGAS
+  UH
+  UTS
+  UAS
+  PRAKTIK
+  SIKAP
+  LAINNYA
+}
+
+enum Gender {
+  L
+  P
+}
+
+enum StudentStatus {
+  AKTIF
+  BEBAS_KAS
+  PINDAH
+}
+
+enum ClassStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+enum MigrationJobStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+enum ExpenseCategory {
+  KONSUMSI
+  ALAT_KEBERSIHAN
+  KEGIATAN_KELAS
+  LAINNYA
+}
+
+enum SavingsTransactionType {
+  DEPOSIT
+  WITHDRAWAL
+}
+
+enum WithdrawalStatus {
+  MENUNGGU
+  DISETUJUI
+  DITOLAK
+}
+
+enum AuditEventType {
+  AUTH
+  KEUANGAN
+  MANAJEMEN
+  SISTEM
+}
+
+enum AuditStatus {
+  SUCCESS
+  FAILED
+  WARNING
+}
+
+enum AuditSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+model User {
+  id                          String               @id @default(cuid())
+  name                        String
+  username                    String               @unique
+  passwordHash                String
+  role                        Role
+  classId                     String?
+  class                       Class?               @relation("ClassMembers", fields: [classId], references: [id])
+  createdAt                   DateTime             @default(now())
+  teachingAssignments         TeachingAssignment[] @relation("TeacherTeachingAssignments")
+  homeroomAssignments         HomeroomAssignment[] @relation("TeacherHomeroomAssignments")
+  attendanceSessions          AttendanceSession[]  @relation("AttendanceTeacher")
+  assessments                 Assessment[]         @relation("AssessmentTeacher")
+  sessions                    Session[]
+  recordedPayments            Payment[]            @relation("PaymentRecordedBy")
+  recordedExpenses            Expense[]            @relation("ExpenseRecordedBy")
+  recordedSavingsTransactions SavingsTransaction[] @relation("SavingsRecordedBy")
+  approvedSavingsTransactions SavingsTransaction[] @relation("SavingsApprovedBy")
+  requestedWithdrawals        WithdrawalRequest[]  @relation("WithdrawalRequestedBy")
+  processedWithdrawals        WithdrawalRequest[]  @relation("WithdrawalProcessedBy")
+  auditLogs                   AuditLog[]           @relation("AuditActor")
+  notifications               Notification[]
+
+  @@index([classId, role])
+  @@index([role, createdAt])
+  @@index([createdAt, id])
+}
+
+model Class {
+  id          String   @id @default(cuid())
+  name        String
+  tingkat     String
+  tahunAjaran String
+  kasNominal  Int      @default(0)
+  status      ClassStatus @default(ACTIVE)
+  archivedAt  DateTime?
+  archiveLabel String?
+  promotedFromClassId String?
+  migrationJobId String?
+  createdAt   DateTime @default(now())
+
+  members             User[]               @relation("ClassMembers")
+  teachingAssignments TeachingAssignment[]
+  homeroomAssignments HomeroomAssignment[]
+  attendanceSessions  AttendanceSession[]
+  assessments         Assessment[]
+  students            Student[]
+  payments            Payment[]
+  expenses            Expense[]
+  savingsAccounts     SavingsAccount[]
+  savingsTransactions SavingsTransaction[]
+  withdrawalRequests  WithdrawalRequest[]
+  auditLogs           AuditLog[]
+  notifications       Notification[]
+
+  @@unique([name, tahunAjaran])
+  @@index([status, tahunAjaran])
+  @@index([tahunAjaran, name])
+  @@index([tingkat, name])
+}
+
+model Subject {
+  id                  String               @id @default(cuid())
+  name                String               @unique
+  createdAt           DateTime             @default(now())
+  teachingAssignments TeachingAssignment[]
+  attendanceSessions  AttendanceSession[]
+  assessments         Assessment[]
+
+  @@index([name])
+}
+
+model TeachingAssignment {
+  id           String   @id @default(cuid())
+  teacherId    String
+  teacher      User     @relation("TeacherTeachingAssignments", fields: [teacherId], references: [id], onDelete: Cascade)
+  classId      String
+  class        Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
+  subjectId    String
+  subject      Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  tahunAjaran  String
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  attendanceSessions AttendanceSession[]
+  assessments        Assessment[]
+
+  @@unique([teacherId, classId, subjectId, tahunAjaran])
+  @@index([teacherId, isActive])
+  @@index([classId, subjectId])
+  @@index([tahunAjaran, isActive])
+}
+
+model HomeroomAssignment {
+  id          String   @id @default(cuid())
+  teacherId   String
+  teacher     User     @relation("TeacherHomeroomAssignments", fields: [teacherId], references: [id], onDelete: Cascade)
+  classId     String
+  class       Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
+  tahunAjaran String
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  @@unique([classId, tahunAjaran])
+  @@unique([teacherId, classId, tahunAjaran])
+  @@index([teacherId, isActive])
+  @@index([tahunAjaran, isActive])
+}
+
+model Student {
+  id            String        @id @default(cuid())
+  classId       String
+  class         Class         @relation(fields: [classId], references: [id], onDelete: Cascade)
+  name          String
+  nis           String?
+  nisn          String?
+  gender        Gender?
+  status        StudentStatus @default(AKTIF)
+  statusReason  String?
+  statusSetById String?
+  statusSetAt   DateTime?
+  createdAt     DateTime      @default(now())
+
+  payments            Payment[]
+  savingsAccount      SavingsAccount?
+  savingsTransactions SavingsTransaction[]
+  withdrawalRequests  WithdrawalRequest[]
+  attendanceRecords   AttendanceRecord[]
+  gradeRecords        GradeRecord[]
+
+  @@index([classId])
+  @@index([classId, status])
+  @@index([classId, status, name])
+  @@index([classId, gender])
+}
+
+model AttendanceSession {
+  id           String             @id @default(cuid())
+  assignmentId String
+  assignment   TeachingAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  teacherId    String
+  teacher      User               @relation("AttendanceTeacher", fields: [teacherId], references: [id], onDelete: Cascade)
+  classId      String
+  class        Class              @relation(fields: [classId], references: [id], onDelete: Cascade)
+  subjectId    String
+  subject      Subject            @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  date         DateTime           @db.Date
+  meetingNumber Int               @default(1)
+  isLocked     Boolean            @default(false)
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  records AttendanceRecord[]
+
+  @@unique([assignmentId, date, meetingNumber])
+  @@index([teacherId, date])
+  @@index([classId, subjectId, date])
+}
+
+model AttendanceRecord {
+  id        String           @id @default(cuid())
+  sessionId String
+  session   AttendanceSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  studentId String
+  student   Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  status    AttendanceStatus @default(H)
+  note      String?
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  @@unique([sessionId, studentId])
+  @@index([studentId])
+}
+
+model Assessment {
+  id           String             @id @default(cuid())
+  assignmentId String
+  assignment   TeachingAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  teacherId    String
+  teacher      User               @relation("AssessmentTeacher", fields: [teacherId], references: [id], onDelete: Cascade)
+  classId      String
+  class        Class              @relation(fields: [classId], references: [id], onDelete: Cascade)
+  subjectId    String
+  subject      Subject            @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  title        String
+  type         AssessmentType
+  semester     String
+  assessmentDate DateTime         @db.Date
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  records GradeRecord[]
+
+  @@index([assignmentId, semester])
+  @@index([teacherId, classId, subjectId])
+  @@index([assessmentDate])
+}
+
+model GradeRecord {
+  id           String     @id @default(cuid())
+  assessmentId String
+  assessment   Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  studentId    String
+  student      Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  score        Decimal?   @db.Decimal(5, 2)
+  note         String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@unique([assessmentId, studentId])
+  @@index([studentId])
+}
+
+model Payment {
+  id           String    @id @default(cuid())
+  studentId    String
+  student      Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  classId      String?
+  class        Class?    @relation(fields: [classId], references: [id], onDelete: Cascade)
+  year         Int
+  month        Int
+  isPaid       Boolean   @default(false)
+  amount       Int
+  paidAt       DateTime?
+  recordedById String?
+  recordedBy   User?     @relation("PaymentRecordedBy", fields: [recordedById], references: [id])
+  createdAt    DateTime  @default(now())
+
+  @@unique([studentId, year, month])
+  @@index([classId, year, month, isPaid])
+  @@index([year, month])
+  @@index([year, month, isPaid])
+  @@index([studentId, year, month, isPaid])
+}
+
+model MigrationJob {
+  id           String             @id @default(cuid())
+  fromTahunAjaran String
+  toTahunAjaran   String
+  status       MigrationJobStatus @default(PENDING)
+  requestedById String?
+  scheduledAt  DateTime?
+  startedAt    DateTime?
+  finishedAt   DateTime?
+  summary      Json?
+  errorMessage String?            @db.Text
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  @@index([status, scheduledAt])
+  @@index([fromTahunAjaran, toTahunAjaran])
+}
+
+model SystemSetting {
+  key       String   @id
+  value     Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Expense {
+  id           String          @id @default(cuid())
+  classId      String
+  class        Class           @relation(fields: [classId], references: [id], onDelete: Cascade)
+  category     ExpenseCategory
+  itemName     String
+  amount       Int
+  photoUrl     String?
+  note         String?
+  spentAt      DateTime
+  recordedById String
+  recordedBy   User            @relation("ExpenseRecordedBy", fields: [recordedById], references: [id])
+  createdAt    DateTime        @default(now())
+
+  @@index([classId, spentAt])
+  @@index([spentAt, classId])
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model SavingsAccount {
+  id        String    @id @default(cuid())
+  studentId String    @unique
+  student   Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  classId   String
+  class     Class     @relation(fields: [classId], references: [id], onDelete: Cascade)
+  isLocked  Boolean   @default(false)
+  lockedAt  DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  transactions       SavingsTransaction[]
+  withdrawalRequests WithdrawalRequest[]
+
+  @@index([classId])
+}
+
+model SavingsTransaction {
+  id                  String                 @id @default(cuid())
+  accountId           String
+  account             SavingsAccount         @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  studentId           String
+  student             Student                @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  classId             String
+  class               Class                  @relation(fields: [classId], references: [id], onDelete: Cascade)
+  type                SavingsTransactionType
+  amount              Int
+  transactionDate     DateTime
+  note                String?
+  recordedById        String
+  recordedBy          User                   @relation("SavingsRecordedBy", fields: [recordedById], references: [id])
+  approvedById        String?
+  approvedBy          User?                  @relation("SavingsApprovedBy", fields: [approvedById], references: [id])
+  withdrawalRequestId String?                @unique
+  withdrawalRequest   WithdrawalRequest?     @relation(fields: [withdrawalRequestId], references: [id], onDelete: SetNull)
+  reversalOfId        String?
+  reversalOf          SavingsTransaction?    @relation("SavingsReversal", fields: [reversalOfId], references: [id], onDelete: SetNull)
+  reversedBy          SavingsTransaction[]   @relation("SavingsReversal")
+  isReversal          Boolean                @default(false)
+  createdAt           DateTime               @default(now())
+
+  @@index([classId, transactionDate])
+  @@index([classId, studentId, type])
+  @@index([classId, createdAt])
+  @@index([studentId, transactionDate])
+  @@index([type])
+}
+
+model WithdrawalRequest {
+  id             String              @id @default(cuid())
+  accountId      String
+  account        SavingsAccount      @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  studentId      String
+  student        Student             @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  classId        String
+  class          Class               @relation(fields: [classId], references: [id], onDelete: Cascade)
+  amount         Int
+  reason         String?
+  status         WithdrawalStatus    @default(MENUNGGU)
+  requestedById  String
+  requestedBy    User                @relation("WithdrawalRequestedBy", fields: [requestedById], references: [id])
+  processedById  String?
+  processedBy    User?               @relation("WithdrawalProcessedBy", fields: [processedById], references: [id])
+  processedAt    DateTime?
+  rejectedReason String?
+  transaction    SavingsTransaction?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  @@index([classId, status])
+  @@index([classId, createdAt])
+  @@index([studentId, status])
+}
+
+model AuditLog {
+  id          String         @id @default(cuid())
+  eventType   AuditEventType
+  eventAction String
+  status      AuditStatus    @default(SUCCESS)
+  severity    AuditSeverity  @default(LOW)
+  actorId     String?
+  actor       User?          @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+  actorRole   Role?
+  entityType  String
+  entityId    String?
+  classId     String?
+  class       Class?         @relation(fields: [classId], references: [id], onDelete: SetNull)
+  ipAddress   String?
+  userAgent   String?        @db.Text
+  requestId   String?
+  metadata    Json?
+  oldValue    Json?          @map("old_value")
+  newValue    Json?          @map("new_value")
+  previousHash String?       @db.Char(64) @map("previous_hash")
+  logHash     String?        @unique @db.Char(64) @map("log_hash")
+  createdAt   DateTime       @default(now())
+
+  @@index([eventType, createdAt])
+  @@index([status, createdAt])
+  @@index([severity, createdAt])
+  @@index([classId, createdAt])
+  @@index([actorId, createdAt])
+  @@index([createdAt, id])
+  @@index([previousHash])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  classId   String?
+  class     Class?   @relation(fields: [classId], references: [id], onDelete: Cascade)
+  title     String
+  body      String
+  type      String
+  entityId  String?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, isRead])
+  @@index([classId, createdAt])
+}

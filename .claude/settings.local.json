@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xargs wc -l)",
+      "Bash(grep -E \"^\\\\s*[3-9][0-9]{2,}\")"
+    ]
+  }
+}

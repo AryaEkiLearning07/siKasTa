@@ -1,0 +1,116 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Brand - from SMP Negeri 1 Dlanggu logo */
+  --color-brand-gold-crest: #EEDF00;
+  --color-brand-gold-ui: #9C7A12;
+  --color-brand-gold-bg: #FAEEDA;
+  --color-brand-green: #0F6E56;
+  --color-brand-green-dark: #085041;
+  --color-brand-green-bg: #EAF3DE;
+  --color-brand-ink: #1C1B17;
+  --color-brand-cream: #FBF9F2;
+  --color-brand-blue-info: #2C6E8E;
+  --color-brand-blue-bg: #E6F1FB;
+
+  /* Semantic */
+  --color-success: #0F6E56;
+  --color-success-bg: #EAF3DE;
+  --color-warning: #9C7A12;
+  --color-warning-bg: #FAEEDA;
+  --color-danger: #B3261E;
+  --color-danger-bg: #FCEBEB;
+  --color-info: #2C6E8E;
+  --color-info-bg: #E6F1FB;
+
+  /* Neutral */
+  --color-text-secondary: #6B6F68;
+  --color-border: #DCD8CF;
+  --color-surface: #FFFFFF;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: Inter, 'Segoe UI', system-ui, sans-serif;
+  background-color: var(--color-brand-cream);
+  color: var(--color-brand-ink);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: Georgia, Cambria, 'Times New Roman', serif;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-brand-cream);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-secondary);
+}
+
+/* Focus styles */
+:focus-visible {
+  outline: 2px solid var(--color-brand-green);
+  outline-offset: 2px;
+}
+
+/* Slide in animation for Toast */
+@keyframes slide-in {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-in {
+  animation: slide-in 0.3s ease-out;
+}
+
+@keyframes route-progress {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(220%);
+  }
+}
+
+.animate-route-progress {
+  animation: route-progress 1.1s ease-in-out infinite;
+}
+
+/* Table styles */
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+th {
+  font-family: Inter, 'Segoe UI', system-ui, sans-serif;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+}
